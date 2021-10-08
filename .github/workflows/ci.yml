@@ -12,7 +12,7 @@ on:
       - "*"
   schedule:
     # Daily at 05:14
-    - cron: '14 5 * * *'
+    # - cron: '14 5 * * *'
 
 jobs:
   test:
