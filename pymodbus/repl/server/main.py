@@ -1,21 +1,24 @@
 """Repl server main."""
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
-from typing import List
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+from typing import List
 
 import typer
+
 from pymodbus.framer.socket_framer import ModbusSocketFramer
 from pymodbus.repl.server.cli import run_repl
-from pymodbus.server.reactive.default_config import DEFUALT_CONFIG
+from pymodbus.server.reactive.default_config import DEFAULT_CONFIG
 from pymodbus.server.reactive.main import (
     DEFAULT_FRAMER,
     DEFUALT_HANDLERS,
     ReactiveServer,
 )
+
 
 CANCELLED_ERROR = asyncio.exceptions.CancelledError
 
@@ -68,23 +71,26 @@ def servers(incomplete: str) -> List[str]:
     return _completer(incomplete, _servers)
 
 
-app = typer.Typer(no_args_is_help=True,
-                  context_settings=CONTEXT_SETTING,
-                  help="Reactive modebus server")
+app = typer.Typer(
+    no_args_is_help=True,
+    context_settings=CONTEXT_SETTING,
+    help="Reactive modebus server",
+)
 
 
 @app.callback()
-def server(ctx: typer.Context,
-           host: str = typer.Option(
-               "localhost", "--host", help="Host address"),
-           web_port: int = typer.Option(
-               8080, "--web-port", help="Web app port"),
-           broadcast_support: bool = typer.Option(
-               False, "-b", help="Support broadcast messages"),
-           repl: bool = typer.Option(
-               True, help="Enable/Disable repl for server"),
-           verbose: bool = typer.Option(
-               False, help="Run with debug logs enabled for pymodbus")):
+def server(
+    ctx: typer.Context,
+    host: str = typer.Option("localhost", "--host", help="Host address"),
+    web_port: int = typer.Option(8080, "--web-port", help="Web app port"),
+    broadcast_support: bool = typer.Option(
+        False, "-b", help="Support broadcast messages"
+    ),
+    repl: bool = typer.Option(True, help="Enable/Disable repl for server"),
+    verbose: bool = typer.Option(
+        False, help="Run with debug logs enabled for pymodbus"
+    ),
+):
     """Run server code."""
     FORMAT = (  # pylint: disable=invalid-name
         "%(asctime)-15s %(threadName)-15s"
@@ -117,32 +123,31 @@ def run(
         "-s",
         case_sensitive=False,
         autocompletion=servers,
-        help="Modbus Server"),
+        help="Modbus Server",
+    ),
     modbus_framer: str = typer.Option(
         ModbusFramerTypes.socket,
         "--framer",
         "-f",
         case_sensitive=False,
         autocompletion=framers,
-        help="Modbus framer to use"),
-    modbus_port: str = typer.Option(
-        "5020",
-        "--modbus-port",
-        "-p",
-        help='Modbus port'),
+        help="Modbus framer to use",
+    ),
+    modbus_port: str = typer.Option("5020", "--modbus-port", "-p", help="Modbus port"),
     modbus_unit_id: List[int] = typer.Option(
-        None,
-        "--unit-id",
-        "-u",
-        help="Supported Modbus unit id's") ,
+        None, "--unit-id", "-u", help="Supported Modbus unit id's"
+    ),
     modbus_config: Path = typer.Option(
-        None,
-        help="Path to additional modbus server config"),
+        None, help="Path to additional modbus server config"
+    ),
     randomize: int = typer.Option(
         0,
-        "--random", "-r",
+        "--random",
+        "-r",
         help="Randomize every `r` reads. 0=never, 1=always,2=every-second-read"
-             ", and so on. Applicable IR and DI.",)):
+        ", and so on. Applicable IR and DI.",
+    ),
+):
     """Run Reactive Modbus server.
 
     Exposing REST endpoint for response manipulation.
@@ -156,10 +161,10 @@ def run(
         with open(modbus_config) as my_file:  # pylint: disable=unspecified-encoding
             modbus_config = json.load(my_file)
     else:
-        modbus_config = DEFUALT_CONFIG
+        modbus_config = DEFAULT_CONFIG
 
+    data_block_settings = modbus_config.pop("data_block_settings", {})
     modbus_config = modbus_config.get(modbus_server, {})
-
     if modbus_server != "serial":
         modbus_port = int(modbus_port)
         handler = modbus_config.pop("handler", "ModbusConnectedRequestHandler")
@@ -176,17 +181,15 @@ def run(
         unit=modbus_unit_id,
         loop=loop,
         single=False,
+        data_block_settings=data_block_settings,
         **web_app_config,
-        **modbus_config
+        **modbus_config,
     )
     try:
+        loop.run_until_complete(app.run_async(repl))
         if repl:
-            loop.run_until_complete(app.run_async())
-
             loop.run_until_complete(run_repl(app))
-            loop.run_forever()
-        else:
-            app.run()
+        loop.run_forever()
 
     except CANCELLED_ERROR:
         print("Done!!!!!")

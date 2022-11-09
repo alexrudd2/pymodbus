@@ -4,13 +4,14 @@ from unittest.mock import Mock, patch
 import pytest
 
 from pymodbus.bit_read_message import ReadCoilsRequest
+from pymodbus.client import ModbusBaseClient
 from pymodbus.exceptions import ModbusIOException
 from pymodbus.factory import ClientDecoder
 from pymodbus.framer.ascii_framer import ModbusAsciiFramer
 from pymodbus.framer.binary_framer import ModbusBinaryFramer
 from pymodbus.framer.rtu_framer import ModbusRtuFramer
 from pymodbus.utilities import ModbusTransactionState
-from pymodbus.client import ModbusBaseClient
+
 
 TEST_MESSAGE = b"\x00\x01\x00\x01\x00\n\xec\x1c"
 
@@ -27,10 +28,10 @@ def ascii_framer():
     return ModbusAsciiFramer(ClientDecoder())
 
 
-@pytest.fixture
-def binary_framer():
-    """Binary framer."""
-    return ModbusBinaryFramer(ClientDecoder())
+# @pytest.fixture
+# def binary_framer():
+#     """Binary framer."""
+#     return ModbusBinaryFramer(ClientDecoder())
 
 
 @pytest.mark.parametrize(
@@ -265,8 +266,12 @@ def test_rtu_incoming_packet(rtu_framer, data):  # pylint: disable=redefined-out
     """Test rtu process incoming packet."""
     buffer, units, reset_called, process_called = data
 
-    with patch.object(rtu_framer, "_process") as mock_process, patch.object(
-        rtu_framer, "resetFrame"
+    with patch.object(
+        rtu_framer,
+        "_process",
+        wraps=rtu_framer._process,  # pylint: disable=protected-access
+    ) as mock_process, patch.object(
+        rtu_framer, "resetFrame", wraps=rtu_framer.resetFrame
     ) as mock_reset:
         rtu_framer.processIncomingPacket(buffer, Mock(), units)
         assert mock_process.call_count == (1 if process_called else 0)  # nosec
@@ -307,12 +312,9 @@ def test_recv_packet(rtu_framer):  # pylint: disable=redefined-outer-name
 def test_process(rtu_framer):  # pylint: disable=redefined-outer-name
     """Test process."""
 
-    def callback(res):
-        return res
-
     rtu_framer._buffer = TEST_MESSAGE  # pylint: disable=protected-access
     with pytest.raises(ModbusIOException):
-        rtu_framer._process(callback)  # pylint: disable=protected-access
+        rtu_framer._process(None)  # pylint: disable=protected-access
 
 
 def test_get_raw_frame(rtu_framer):  # pylint: disable=redefined-outer-name

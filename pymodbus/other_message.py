@@ -5,9 +5,10 @@ Currently not all implemented
 # pylint: disable=missing-type-doc
 import struct
 
-from pymodbus.constants import ModbusStatus
+from pymodbus.constants import Defaults, ModbusStatus
 from pymodbus.device import DeviceInformationFactory, ModbusControlBlock
 from pymodbus.pdu import ModbusRequest, ModbusResponse
+
 
 _MCB = ModbusControlBlock()
 
@@ -26,9 +27,9 @@ class ReadExceptionStatusRequest(ModbusRequest):
     function_code = 0x07
     _rtu_frame_size = 4
 
-    def __init__(self, **kwargs):
+    def __init__(self, unit=None, **kwargs):
         """Initialize a new instance."""
-        ModbusRequest.__init__(self, **kwargs)
+        ModbusRequest.__init__(self, unit=unit, **kwargs)
 
     def encode(self):
         """Encode the message."""
@@ -360,9 +361,13 @@ class ReportSlaveIdRequest(ModbusRequest):
     function_code = 0x11
     _rtu_frame_size = 4
 
-    def __init__(self, **kwargs):
-        """Initialize a new instance."""
-        ModbusRequest.__init__(self, **kwargs)
+    def __init__(self, unit=Defaults.Slave, **kwargs):
+        """Initialize a new instance.
+
+        :param unit: Modbus slave unit ID
+
+        """
+        ModbusRequest.__init__(self, unit, **kwargs)
 
     def encode(self):
         """Encode the message."""

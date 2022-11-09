@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Payload Utilities Test Fixture.
 
 This fixture tests the functionality of the payload
@@ -12,6 +11,7 @@ import unittest
 from pymodbus.constants import Endian
 from pymodbus.exceptions import ParameterException
 from pymodbus.payload import BinaryPayloadBuilder, BinaryPayloadDecoder
+
 
 # ---------------------------------------------------------------------------#
 #  Fixture
@@ -266,10 +266,3 @@ class ModbusPayloadUtilityTests(unittest.TestCase):
         self.assertRaises(
             ParameterException, lambda: BinaryPayloadDecoder.fromCoils("abcd")
         )
-
-
-# ---------------------------------------------------------------------------#
-#  Main
-# ---------------------------------------------------------------------------#
-if __name__ == "__main__":
-    unittest.main()

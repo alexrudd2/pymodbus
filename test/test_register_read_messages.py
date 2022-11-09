@@ -1,7 +1,8 @@
-#!/usr/bin/env python3
 """Test register read messages."""
 import unittest
+from test.conftest import FakeList, MockContext
 
+from pymodbus.pdu import ModbusExceptions
 from pymodbus.register_read_message import (
     ReadHoldingRegistersRequest,
     ReadHoldingRegistersResponse,
@@ -12,9 +13,7 @@ from pymodbus.register_read_message import (
     ReadWriteMultipleRegistersRequest,
     ReadWriteMultipleRegistersResponse,
 )
-from pymodbus.pdu import ModbusExceptions
 
-from .modbus_mocks import FakeList, MockContext
 
 TEST_MESSAGE = b"\x06\x00\x0a\x00\x0b\x00\x0c"
 
@@ -196,10 +195,3 @@ class ReadRegisterMessagesTest(unittest.TestCase):
             self.assertTrue(str(request) is not None)
         for request in iter(self.response_read.keys()):
             self.assertTrue(str(request) is not None)
-
-
-# ---------------------------------------------------------------------------#
-#  Main
-# ---------------------------------------------------------------------------#
-if __name__ == "__main__":
-    unittest.main()

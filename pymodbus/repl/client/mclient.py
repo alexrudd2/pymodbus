@@ -2,10 +2,9 @@
 # pylint: disable=missing-type-doc
 import functools
 
-from pymodbus.client import (
-    ModbusSerialClient as _ModbusSerialClient,
-    ModbusTcpClient as _ModbusTcpClient,
-)
+from pymodbus.client import ModbusSerialClient as _ModbusSerialClient
+from pymodbus.client import ModbusTcpClient as _ModbusTcpClient
+from pymodbus.constants import Defaults
 from pymodbus.diag_message import (
     ChangeAsciiInputDelimiterRequest,
     ClearCountersRequest,
@@ -73,143 +72,160 @@ class ExtendedRequestSupport:  # pylint: disable=(too-many-public-methods
     def _process_exception(resp, **kwargs):
         """Set internal process exception."""
         unit = kwargs.get("unit")
-        if unit == 0:  # pylint: disable=compare-to-zero,disable=consider-using-assignment-expr
-            err = {
-                "message": "Broadcast message, ignoring errors!!!"
-            }
+        if (
+            unit  # pylint: disable=compare-to-zero,disable=consider-using-assignment-expr
+            == 0
+        ):
+            err = {"message": "Broadcast message, ignoring errors!!!"}
         else:
             if isinstance(resp, ExceptionResponse):  # pylint: disable=else-if-used
                 err = {
-                    'original_function_code': f"{resp.original_code} ({hex(resp.original_code)})",
-                    'error_function_code': f"{resp.function_code} ({hex(resp.function_code)})",
-                    'exception code': resp.exception_code,
-                    'message': ModbusExceptions.decode(resp.exception_code)
+                    "original_function_code": f"{resp.original_code} ({hex(resp.original_code)})",
+                    "error_function_code": f"{resp.function_code} ({hex(resp.function_code)})",
+                    "exception code": resp.exception_code,
+                    "message": ModbusExceptions.decode(resp.exception_code),
                 }
             elif isinstance(resp, ModbusIOException):
                 err = {
-                    'original_function_code': f"{resp.fcode} ({hex(resp.fcode)})",
-                    'error': resp.message
+                    "original_function_code": f"{resp.fcode} ({hex(resp.fcode)})",
+                    "error": resp.message,
                 }
             else:
-                err = {
-                    'error': str(resp)
-                }
+                err = {"error": str(resp)}
         return err
 
-    def read_coils(self, address, count=1, **kwargs):
+    def read_coils(self, address, count=1, slave=Defaults.Slave, **kwargs):
         """Read `count` coils from a given slave starting at `address`.
 
         :param address: The starting address to read from
         :param count: The number of coils to read
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :returns: List of register values
         """
-        resp = super().read_coils(address, count, **kwargs)  # pylint: disable=no-member
+        resp = super().read_coils(  # pylint: disable=no-member
+            address, count, slave, **kwargs
+        )
         if not resp.isError():
             return {"function_code": resp.function_code, "bits": resp.bits}
         return ExtendedRequestSupport._process_exception(resp)
 
-    def read_discrete_inputs(self, address, count=1, **kwargs):
+    def read_discrete_inputs(self, address, count=1, slave=Defaults.Slave, **kwargs):
         """Read `count` number of discrete inputs starting at offset `address`.
 
         :param address: The starting address to read from
         :param count: The number of coils to read
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :return: List of bits
         """
         resp = super().read_discrete_inputs(  # pylint: disable=no-member
-            address, count, **kwargs
+            address, count, slave, **kwargs
         )
         if not resp.isError():
             return {"function_code": resp.function_code, "bits": resp.bits}
         return ExtendedRequestSupport._process_exception(resp)
 
     @handle_brodcast
-    def write_coil(self, address, value, **kwargs):
+    def write_coil(self, address, value, slave=Defaults.Slave, **kwargs):
         """Write `value` to coil at `address`.
 
         :param address: coil offset to write to
         :param value: bit value to write
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :return:
         """
-        resp = super().write_coil(address, value, **kwargs)  # pylint: disable=no-member
+        resp = super().write_coil(  # pylint: disable=no-member
+            address, value, slave, **kwargs
+        )
         return resp
 
     @handle_brodcast
-    def write_coils(self, address, values, **kwargs):
+    def write_coils(self, address, values, slave=Defaults.Slave, **kwargs):
         """Write `value` to coil at `address`.
 
         :param address: coil offset to write to
         :param values: list of bit values to write (comma separated)
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :return:
         """
         resp = super().write_coils(  # pylint: disable=no-member
-            address, values, **kwargs
+            address, values, slave, **kwargs
         )
         return resp
 
     @handle_brodcast
-    def write_register(self, address, value, **kwargs):
+    def write_register(self, address, value, slave=Defaults.Slave, **kwargs):
         """Write `value` to register at `address`.
 
         :param address: register offset to write to
         :param value: register value to write
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :return:
         """
         resp = super().write_register(  # pylint: disable=no-member
-            address, value, **kwargs
+            address, value, slave, **kwargs
         )
         return resp
 
     @handle_brodcast
-    def write_registers(self, address, values, **kwargs):
+    def write_registers(self, address, values, slave=Defaults.Slave, **kwargs):
         """Write list of `values` to registers starting at `address`.
 
         :param address: register offset to write to
         :param values: list of register value to write (comma separated)
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :return:
         """
         resp = super().write_registers(  # pylint: disable=no-member
-            address, values, **kwargs
+            address, values, slave, **kwargs
         )
         return resp
 
-    def read_holding_registers(self, address, count=1, **kwargs):
+    def read_holding_registers(self, address, count=1, slave=Defaults.Slave, **kwargs):
         """Read `count` number of holding registers starting at `address`.
 
         :param address: starting register offset to read from
         :param count: Number of registers to read
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :return:
         """
         resp = super().read_holding_registers(  # pylint: disable=no-member
-            address, count, **kwargs
+            address, count, slave, **kwargs
         )
         if not resp.isError():
             return {"function_code": resp.function_code, "registers": resp.registers}
         return ExtendedRequestSupport._process_exception(resp)
 
-    def read_input_registers(self, address, count=1, **kwargs):
+    def read_input_registers(self, address, count=1, slave=Defaults.Slave, **kwargs):
         """Read `count` number of input registers starting at `address`.
 
         :param address: starting register offset to read from to
         :param count: Number of registers to read
+        :param slave: Modbus slave unit ID
         :param kwargs:
         :return:
         """
         resp = super().read_input_registers(  # pylint: disable=no-member
-            address, count, **kwargs
+            address, count, slave, **kwargs
         )
         if not resp.isError():
             return {"function_code": resp.function_code, "registers": resp.registers}
         return ExtendedRequestSupport._process_exception(resp)
 
     def readwrite_registers(
-        self, read_address, read_count, write_address, write_registers, **kwargs
+        self,
+        read_address,
+        read_count,
+        write_address,
+        write_registers,
+        unit=Defaults.Slave,
+        **kwargs,
     ):
         """Read `read_count` number of holding registers.
 
@@ -220,6 +236,7 @@ class ExtendedRequestSupport:  # pylint: disable=(too-many-public-methods
         :param read_count: Number of registers to read
         :param write_address: register offset to write to
         :param write_registers: List of register values to write (comma separated)
+        :param unit: Modbus slave unit ID
         :param kwargs:
         :return:
         """
@@ -228,6 +245,7 @@ class ExtendedRequestSupport:  # pylint: disable=(too-many-public-methods
             read_count=read_count,
             write_address=write_address,
             write_registers=write_registers,
+            unit=unit,
             **kwargs,
         )
         if not resp.isError():
@@ -235,18 +253,24 @@ class ExtendedRequestSupport:  # pylint: disable=(too-many-public-methods
         return ExtendedRequestSupport._process_exception(resp)
 
     def mask_write_register(
-        self, address=0x0000, and_mask=0xFFFF, or_mask=0x0000, **kwargs
+        self,
+        address=0x0000,
+        and_mask=0xFFFF,
+        or_mask=0x0000,
+        unit=Defaults.Slave,
+        **kwargs,
     ):
         """Mask content of holding register at `address` with `and_mask` and `or_mask`.
 
         :param address: Reference address of register
         :param and_mask: And Mask
         :param or_mask: OR Mask
+        :param unit: Modbus slave unit ID
         :param kwargs:
         :return:
         """
         resp = super().mask_write_register(  # pylint: disable=no-member
-            address=address, and_mask=and_mask, or_mask=or_mask, **kwargs
+            address=address, and_mask=and_mask, or_mask=or_mask, unit=unit, **kwargs
         )
         if not resp.isError():
             return {
@@ -279,13 +303,14 @@ class ExtendedRequestSupport:  # pylint: disable=(too-many-public-methods
             }
         return ExtendedRequestSupport._process_exception(resp)
 
-    def report_slave_id(self, **kwargs):
+    def report_slave_id(self, unit=Defaults.Slave, **kwargs):
         """Report information about remote slave ID.
 
+        :param unit: Modbus slave unit ID
         :param kwargs:
         :return:
         """
-        request = ReportSlaveIdRequest(**kwargs)
+        request = ReportSlaveIdRequest(unit, **kwargs)
         resp = self.execute(request)  # pylint: disable=no-member
         if not resp.isError():
             return {
@@ -531,9 +556,7 @@ class ExtendedRequestSupport:  # pylint: disable=(too-many-public-methods
         :param kwargs:
         :return:
         """
-        request = GetClearModbusPlusRequest(  # pylint: disable=too-many-function-args
-            data, **kwargs
-        )
+        request = GetClearModbusPlusRequest(data, **kwargs)
         return self._execute_diagnostic_request(request)
 
 
@@ -565,14 +588,14 @@ class ModbusSerialClient(ExtendedRequestSupport, _ModbusSerialClient):
 
         :return: Current Stop bits
         """
-        return self.stopbits
+        return self.params.stopbits
 
     def set_stopbits(self, value):
         """Set stop bit.
 
         :param value: Possible values (1, 1.5, 2)
         """
-        self.stopbits = float(value)
+        self.params.stopbits = float(value)
         if self.is_socket_open():
             self.close()
 
@@ -581,7 +604,7 @@ class ModbusSerialClient(ExtendedRequestSupport, _ModbusSerialClient):
 
         :return: Current bytesize
         """
-        return self.bytesize
+        return self.params.bytesize
 
     def set_bytesize(self, value):
         """Set Byte size.
@@ -589,7 +612,7 @@ class ModbusSerialClient(ExtendedRequestSupport, _ModbusSerialClient):
         :param value: Possible values (5, 6, 7, 8)
 
         """
-        self.bytesize = int(value)
+        self.params.bytesize = int(value)
         if self.is_socket_open():
             self.close()
 
@@ -598,14 +621,14 @@ class ModbusSerialClient(ExtendedRequestSupport, _ModbusSerialClient):
 
         :return: Current parity setting
         """
-        return self.parity
+        return self.params.parity
 
     def set_parity(self, value):
         """Set parity Setter.
 
         :param value: Possible values ("N", "E", "O", "M", "S")
         """
-        self.parity = value
+        self.params.parity = value
         if self.is_socket_open():
             self.close()
 
@@ -614,14 +637,14 @@ class ModbusSerialClient(ExtendedRequestSupport, _ModbusSerialClient):
 
         :return: Current baudrate
         """
-        return self.baudrate
+        return self.params.baudrate
 
     def set_baudrate(self, value):
         """Set baudrate setter.
 
         :param value: <supported baudrate>
         """
-        self.baudrate = int(value)
+        self.params.baudrate = int(value)
         if self.is_socket_open():
             self.close()
 
@@ -647,11 +670,11 @@ class ModbusSerialClient(ExtendedRequestSupport, _ModbusSerialClient):
         :return: Current Serial settings as dict.
         """
         return {
-            "baudrate": self.baudrate,
+            "baudrate": self.params.baudrate,
             "port": self.params.port,
-            "parity": self.parity,
-            "stopbits": self.stopbits,
-            "bytesize": self.bytesize,
+            "parity": self.params.parity,
+            "stopbits": self.params.stopbits,
+            "bytesize": self.params.bytesize,
             "read timeout": self.params.timeout,
             "t1.5": self.inter_char_timeout,
             "t3.5": self.silent_interval,

@@ -3,10 +3,11 @@ import logging
 import socket
 import time
 
-from pymodbus.client.sync_tcp import ModbusTcpClient
+from pymodbus.client.tcp import ModbusTcpClient
 from pymodbus.constants import Defaults
 from pymodbus.exceptions import ConnectionException
-from pymodbus.transaction import ModbusSocketFramer
+from pymodbus.framer.socket_framer import ModbusSocketFramer
+
 
 _logger = logging.getLogger(__name__)
 
@@ -52,7 +53,11 @@ class ModbusTcpDiagClient(ModbusTcpClient):
     """
 
     def __init__(
-        self, host="127.0.0.1", port=Defaults.Port, framer=ModbusSocketFramer, **kwargs
+        self,
+        host="127.0.0.1",
+        port=Defaults.TcpPort,
+        framer=ModbusSocketFramer,
+        **kwargs,
     ):
         """Initialize a client instance.
 
@@ -90,10 +95,12 @@ class ModbusTcpDiagClient(ModbusTcpClient):
             self.socket = socket.create_connection(
                 (self.params.host, self.params.port),
                 timeout=self.params.timeout,
-                source_address=self.source_address,
+                source_address=self.params.source_address,
             )
         except socket.error as msg:
-            _logger.error(LOG_MSGS["connfail_msg"], self.params.host, self.params.port, msg)
+            _logger.error(
+                LOG_MSGS["connfail_msg"], self.params.host, self.params.port, msg
+            )
             self.close()
         return self.socket is not None
 

@@ -10,7 +10,12 @@ from struct import pack, unpack
 from pymodbus.constants import Endian
 from pymodbus.exceptions import ParameterException
 from pymodbus.interfaces import IPayloadBuilder
-from pymodbus.utilities import make_byte_string, pack_bitstring, unpack_bitstring
+from pymodbus.utilities import (
+    make_byte_string,
+    pack_bitstring,
+    unpack_bitstring,
+)
+
 
 # --------------------------------------------------------------------------- #
 # Logging
@@ -373,9 +378,9 @@ class BinaryPayloadDecoder:
         handle = make_byte_string(handle)
         return unpack(fstring, handle)[0]
 
-    def decode_bits(self):
+    def decode_bits(self, package_len=1):
         """Decode a byte worth of bits from the buffer."""
-        self._pointer += 1
+        self._pointer += package_len
         # fstring = self._endian + "B"
         handle = self._payload[self._pointer - 1 : self._pointer]
         handle = make_byte_string(handle)

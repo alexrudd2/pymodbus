@@ -10,6 +10,7 @@ from prompt_toolkit.shortcuts import clear
 from prompt_toolkit.shortcuts.progress_bar import formatters
 from prompt_toolkit.styles import Style
 
+
 _logger = logging.getLogger(__name__)
 
 TITLE = r"""
@@ -103,7 +104,7 @@ def print_help():
     print_formatted_text(HTML("<u>Available commands:</u>"))
     for cmd, hlp in sorted(COMMAND_HELPS.items()):
         print_formatted_text(
-            HTML("<skyblue>{cmd:45s}</skyblue><seagreen>{hlp:100s}</seagreen>")
+            HTML(f"<skyblue>{cmd:45s}</skyblue><seagreen>{hlp:100s}</seagreen>")
         )
 
 

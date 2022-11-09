@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Test interfaces."""
 import unittest
 
@@ -31,7 +30,7 @@ class ModbusInterfaceTestsTest(unittest.TestCase):
         second = _SingleInstance()
         self.assertEqual(first, second)
 
-    def test_modbus_decoder_interface(self):
+    def test_imodbusdecoder(self):
         """Test that the base class isn"t implemented"""
         x_base = None
         instance = IModbusDecoder()
@@ -81,10 +80,3 @@ class ModbusInterfaceTestsTest(unittest.TestCase):
             NotImplementedException,
             lambda: instance.build(),  # pylint: disable=unnecessary-lambda
         )
-
-
-# ---------------------------------------------------------------------------#
-#  Main
-# ---------------------------------------------------------------------------#
-if __name__ == "__main__":
-    unittest.main()

@@ -1,10 +1,24 @@
-#!/usr/bin/env python3
 """Test client async."""
-import logging
 import asyncio
-from dataclasses import dataclass
-import pytest
+import logging
+from threading import Thread
+from time import sleep
 
+import pytest
+import pytest_asyncio
+
+from examples.client_async import run_async_client, setup_async_client
+from examples.client_calls import run_async_calls, run_sync_calls
+from examples.client_payload import run_payload_calls
+from examples.client_sync import run_sync_client, setup_sync_client
+from examples.helper import Commandline
+
+# from examples.modbus_forwarder import run_forwarder
+from examples.server_async import run_async_server, setup_server
+from examples.server_payload import setup_payload_server
+from examples.server_sync import run_sync_server
+from pymodbus import pymodbus_apply_logging_config
+from pymodbus.server import ServerAsyncStop, ServerStop
 from pymodbus.transaction import (
     ModbusAsciiFramer,
     ModbusBinaryFramer,
@@ -13,129 +27,201 @@ from pymodbus.transaction import (
     ModbusTlsFramer,
 )
 
-from examples.server_sync import run_server as server_sync
-from examples.server_async import run_server as server_async
-from examples.client_sync import run_client as client_sync
-from examples.client_async import run_client as client_async
-from examples.client_sync_basic_calls import demonstrate_calls as demo_sync_basic
-from examples.client_sync_extended_calls import demonstrate_calls as demo_sync_extended
-from examples.client_async_basic_calls import demonstrate_calls as demo_async_basic
-from examples.client_async_extended_calls import demonstrate_calls as demo_async_extended
-
 
 _logger = logging.getLogger()
-
-EXAMPLE_PATH = "../examples"
-PYTHON = "python3"
-
-
-def to_be_solved(test_type, test_framer, test_server, test_comm, test_client):
-    """Solve problems."""
-    if test_type == "extended" and test_framer is not ModbusSocketFramer:
-        return True
-    if not test_server:
-        return True
-    if test_comm in ("tls", "udp", "serial"):  # pylint: disable=use-set-for-membership
-        return True
-    if not test_client and (test_framer is not ModbusSocketFramer or test_comm != "tcp"):
-        return True
-    return False
+_logger.setLevel("DEBUG")
+TEST_COMMS_FRAMER = [
+    ("tcp", ModbusSocketFramer, 5020),
+    ("tcp", ModbusRtuFramer, 5021),
+    ("tls", ModbusTlsFramer, 5020),
+    ("udp", ModbusSocketFramer, 5020),
+    ("udp", ModbusRtuFramer, 5021),
+    ("serial", ModbusRtuFramer, 5020),
+    ("serial", ModbusAsciiFramer, 5021),
+    ("serial", ModbusBinaryFramer, 5022),
+]
 
 
-@dataclass
-class Commandline:
-    """Simulate commandline parameters."""
-
-    comm = None
-    framer = None
-    port = None
-
-    store = "sequential"
-    slaves = None
-    modbus_calls = None
-
-
-@pytest.mark.parametrize(
-    "test_type",
-    [
-        "connect",
-        "basic",
-        "extended",
-    ]
-)
-@pytest.mark.parametrize(
-    "test_server, test_client",
-    [
-        (True, True),
-        (True, False),
-        (False, True),
-        (False, False),
-    ]
-)
-@pytest.mark.parametrize(
-    "test_comm, test_framer",
-    [
-        ("tcp", ModbusSocketFramer),
-        ("tcp", ModbusRtuFramer),
-        ("tcp", ModbusAsciiFramer),
-        ("tls", ModbusTlsFramer),
-        ("udp", ModbusSocketFramer),
-        ("udp", ModbusRtuFramer),
-        ("udp", ModbusAsciiFramer),
-        ("serial", ModbusRtuFramer),
-        ("serial", ModbusAsciiFramer),
-        ("serial", ModbusBinaryFramer),
-    ]
-)
-async def test_client_server(test_type, test_server, test_client, test_comm, test_framer):
-    """Test client/server examples."""
-
-    if to_be_solved(
-        test_type,
-        test_framer,
-        test_server,
-        test_comm,
-        test_client,
-    ):
+@pytest_asyncio.fixture(name="mock_run_server")
+async def _helper_server(
+    test_comm,
+    test_framer,
+    test_port_offset,
+    test_port,
+):
+    """Run server."""
+    if pytest.IS_WINDOWS and test_comm == "serial":
+        yield
         return
-
-    args = Commandline()
+    args = Commandline.copy()
     args.comm = test_comm
     args.framer = test_framer
-    args.port = "/dev/ttyp0" if args.comm == "serial" else "5020"
+    args.port = test_port + test_port_offset
+    if test_comm == "serial":
+        args.port = f"socket://127.0.0.1:{args.port}"
+    run_args = setup_server(args)
+    asyncio.create_task(run_async_server(run_args))
+    await asyncio.sleep(0.1)
+    yield
+    await ServerAsyncStop()
 
-    _logger.setLevel("DEBUG")
 
-    def run_sync_server():
-        """Catch exceptions."""
-        try:
-            server.serve_forever()
-        except:  # pylint: disable=bare-except # noqa: E722
-            server.shutdown()
-            pytest.fail("Server raised an exception")
+async def run_client(test_comm, test_type, args=Commandline.copy()):
+    """Help run async client."""
 
-    loop = asyncio.get_event_loop()
-    if test_server:
-        server = server_sync(args=args)
-        server_id = loop.run_in_executor(None, run_sync_server)
+    args.comm = test_comm
+    if test_comm == "serial":
+        args.port = f"socket://127.0.0.1:{args.port}"
+    test_client = setup_async_client(args=args)
+    if not test_type:
+        await run_async_client(test_client)
     else:
-        server = server_async(args=args)
+        await run_async_client(test_client, modbus_calls=test_type)
     await asyncio.sleep(0.1)
 
-    method_client = {
-        "connect": (None, None),
-        "basic": (demo_sync_basic, demo_async_basic),
-        "extended": (demo_sync_extended, demo_async_extended),
-    }
-    if test_client:
-        client_sync(modbus_calls=method_client[test_type][0], args=args)
-    else:
-        await client_async(modbus_calls=method_client[test_type][1], args=args)
-    server.shutdown()
-    assert server.socket
-    server_id.cancel()
-    assert server_id.cancelled()
+
+@pytest.mark.parametrize("test_port_offset", [10])
+@pytest.mark.parametrize("test_comm, test_framer, test_port", TEST_COMMS_FRAMER)
+async def test_exp_async_server_client(
+    test_comm,
+    test_framer,
+    test_port_offset,
+    test_port,
+    mock_run_server,
+):
+    """Run async client and server."""
+    if pytest.IS_WINDOWS and test_comm == "serial":
+        return
+    assert not mock_run_server
+    args = Commandline.copy()
+    args.framer = test_framer
+    args.comm = test_comm
+    args.port = test_port + test_port_offset
+    await run_client(test_comm, None, args=args)
 
 
-if __name__ == "__main__":
-    asyncio.run(test_client_server("basic", True, False, "tcp", ModbusSocketFramer))
+@pytest.mark.parametrize("test_port_offset", [20])
+@pytest.mark.parametrize("test_comm, test_framer, test_port", [TEST_COMMS_FRAMER[0]])
+def test_exp_sync_server_client(
+    test_comm,
+    test_framer,
+    test_port_offset,
+    test_port,
+):
+    """Run sync client and server."""
+    args = Commandline.copy()
+    args.comm = test_comm
+    args.port = test_port + test_port_offset
+    args.framer = test_framer
+    run_args = setup_server(args)
+    thread = Thread(target=run_sync_server, args=(run_args,))
+    thread.daemon = True
+    thread.start()
+    sleep(1)
+    test_client = setup_sync_client(args=args)
+    run_sync_client(test_client, modbus_calls=run_sync_calls)
+    ServerStop()
+
+
+@pytest.mark.parametrize("test_port_offset", [30])
+@pytest.mark.parametrize("test_comm, test_framer, test_port", TEST_COMMS_FRAMER)
+async def test_exp_client_calls(  # pylint: disable=unused-argument
+    test_comm,
+    test_framer,
+    test_port_offset,
+    test_port,
+    mock_run_server,
+):
+    """Test client-server async with different framers and calls."""
+    if test_comm == "serial" and test_framer in (ModbusAsciiFramer, ModbusBinaryFramer):
+        return
+    if pytest.IS_WINDOWS and test_comm == "serial":
+        return
+    args = Commandline.copy()
+    args.framer = test_framer
+    args.comm = test_comm
+    args.port = test_port + test_port_offset
+    await run_client(test_comm, run_async_calls, args=args)
+
+
+@pytest.mark.parametrize("test_port_offset", [40])
+@pytest.mark.parametrize("test_comm, test_framer, test_port", [TEST_COMMS_FRAMER[0]])
+async def test_exp_forwarder(  # pylint: disable=unused-argument
+    test_comm,
+    test_framer,
+    test_port_offset,
+    test_port,
+    mock_run_server,
+):
+    """Test modbus forwarder."""
+    if pytest.IS_WINDOWS:
+        return
+
+    pymodbus_apply_logging_config()
+    # cmd_args = Commandline.copy()
+    # cmd_args.comm = test_comm
+    # cmd_args.framer = test_framer
+    # cmd_args.port = test_port + test_port_offset + 1
+    # cmd_args.client_port = test_port + test_port_offset
+    # task = asyncio.create_task(run_forwarder(cmd_args))
+    # await asyncio.sleep(0.1)
+    # real_client = AsyncModbusTcpClient(host=cmd_args.host, port=cmd_args.port)
+    # await real_client.connect()
+    # assert real_client.connected
+    # check_client = AsyncModbusTcpClient(host=cmd_args.host, port=cmd_args.client_port)
+    # await check_client.connect()
+    # assert check_client.connected
+    # await asyncio.sleep(0.1)
+
+    # rr = await check_client.read_holding_registers(1, 1, slave=1)
+    # rq = await real_client.read_holding_registers(1, 1, slave=1)
+    # assert rr.registers
+    # assert rq.registers
+    # rr = await check_client.read_coils(1, 1, slave=1)
+    # assert rr.bits
+    # rr = await check_client.read_discrete_inputs(1, 1, slave=1)
+    # assert rr.bits
+    # rr = await check_client.read_input_registers(1, 1, slave=1)
+    # assert rr.registers
+
+    # --
+    # rr = _check_call(check_client.write_register(1, 10, slave=1))
+    # rr = _check_call(check_client.write_coil(0, True, slave=1))
+    # rr =_check_call(check_client.write_registers(1, [10] * 8, slave=1))
+    # rr = _check_call(check_client.write_coils(1, [True] * 21, slave=1))
+
+    # Verify read values are identical
+    # rr_real = await real_client.read_holding_registers(1,1,slave=1)
+    # assert rr_real.registers, f"---> {rr_real}"
+
+    # await real_client.close()
+    # await check_client.close()
+    # await asyncio.sleep(0.1)
+    # await ServerAsyncStop()
+    # await asyncio.sleep(0.1)
+    # task.cancel()
+
+
+@pytest.mark.parametrize("test_port_offset", [50])
+@pytest.mark.parametrize("test_comm, test_framer, test_port", [TEST_COMMS_FRAMER[0]])
+async def test_exp_payload(
+    test_comm,
+    test_framer,
+    test_port_offset,
+    test_port,
+):
+    """Test server/client with payload."""
+    pymodbus_apply_logging_config()
+    args = Commandline.copy()
+    args.port = test_port + test_port_offset
+    args.comm = test_comm
+    args.framer = test_framer
+    run_args = setup_payload_server(args)
+    task = asyncio.create_task(run_async_server(run_args))
+    await asyncio.sleep(0.1)
+    testclient = setup_async_client(args)
+    await run_async_client(testclient, modbus_calls=run_payload_calls)
+    await asyncio.sleep(0.1)
+    await ServerAsyncStop()
+    await asyncio.sleep(0.1)
+    task.cancel()

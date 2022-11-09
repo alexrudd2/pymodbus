@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
 """Test client sync diag."""
-from itertools import count
 import socket
 import unittest
-from unittest.mock import MagicMock, patch
-
+from itertools import count
 from test.test_client_sync import mockSocket
+from unittest.mock import MagicMock, patch
 
 from pymodbus.client.sync_diag import ModbusTcpDiagClient, get_client
 from pymodbus.exceptions import ConnectionException
@@ -14,6 +12,8 @@ from pymodbus.exceptions import ConnectionException
 # ---------------------------------------------------------------------------#
 # Fixture
 # ---------------------------------------------------------------------------#
+
+
 class SynchronousDiagnosticClientTest(unittest.TestCase):
     """Unittest for the pymodbus.client.sync_diag module.
 
@@ -26,12 +26,12 @@ class SynchronousDiagnosticClientTest(unittest.TestCase):
     # Test TCP Diagnostic Client
     # -----------------------------------------------------------------------#
 
-    def test_sync_tcp_diag_client_instantiation(self):
+    def test_syn_tcp_diag_client_instantiation(self):
         """Test sync tcp diag client."""
         client = get_client()
         self.assertNotEqual(client, None)
 
-    def test_basic_sync_tcp_diag_client(self):
+    def test_basic_syn_tcp_diag_client(self):
         """Test the basic methods for the tcp sync diag client"""
         # connect/disconnect
         client = ModbusTcpDiagClient()
@@ -51,9 +51,9 @@ class SynchronousDiagnosticClientTest(unittest.TestCase):
             client = ModbusTcpDiagClient()
             self.assertFalse(client.connect())
 
-    @patch("pymodbus.client.sync_tcp.time")
+    @patch("pymodbus.client.tcp.time")
     @patch("pymodbus.client.sync_diag.time")
-    @patch("pymodbus.client.sync_tcp.select")
+    @patch("pymodbus.client.tcp.select")
     def test_tcp_diag_client_recv(self, mock_select, mock_diag_time, mock_time):
         """Test the tcp sync diag client receive method"""
         mock_select.select.return_value = [True]
@@ -77,20 +77,14 @@ class SynchronousDiagnosticClientTest(unittest.TestCase):
         # test logging of delayed responses
         mock_diag_time.time.side_effect = count(step=3)
         client.socket.mock_store(b"\x00" * 4)
-        self.assertEqual(
-            b"\x00" * 4, client.recv(4)
-        )
+        self.assertEqual(b"\x00" * 4, client.recv(4))
         self.assertEqual(b"", client.recv(0))
 
         client.socket.mock_store(b"\x00\x01\x02")
         client.timeout = 3
-        self.assertEqual(
-            b"\x00\x01\x02", client.recv(3)
-        )
+        self.assertEqual(b"\x00\x01\x02", client.recv(3))
         client.socket.mock_store(b"\x00\x01\x02")
-        self.assertEqual(
-            b"\x00\x01", client.recv(2)
-        )
+        self.assertEqual(b"\x00\x01", client.recv(2))
         mock_select.select.return_value = [False]
         self.assertEqual(b"", client.recv(2))
         client.socket = mockSocket()
@@ -107,9 +101,7 @@ class SynchronousDiagnosticClientTest(unittest.TestCase):
         )
         client.socket = mockSocket()
         client.socket.mock_store(b"\x00\x01\x02")
-        self.assertEqual(
-            b"\x00\x01\x02", client.recv(1024)
-        )
+        self.assertEqual(b"\x00\x01\x02", client.recv(1024))
 
     def test_tcp_diag_client_repr(self):
         """Test tcp diag client."""
@@ -120,10 +112,3 @@ class SynchronousDiagnosticClientTest(unittest.TestCase):
             f"port={client.params.port}, timeout={client.params.timeout}>"
         )
         self.assertEqual(repr(client), rep)
-
-
-# ---------------------------------------------------------------------------#
-# Main
-# ---------------------------------------------------------------------------#
-if __name__ == "__main__":
-    unittest.main()

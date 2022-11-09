@@ -1,11 +1,11 @@
 """Collection of transaction based abstractions."""
 # pylint: disable=missing-type-doc
-from functools import partial
 import logging
 import socket
 import struct
-from threading import RLock
 import time
+from functools import partial
+from threading import RLock
 
 from pymodbus.constants import Defaults
 from pymodbus.exceptions import (
@@ -19,6 +19,7 @@ from pymodbus.framer.rtu_framer import ModbusRtuFramer
 from pymodbus.framer.socket_framer import ModbusSocketFramer
 from pymodbus.framer.tls_framer import ModbusTlsFramer
 from pymodbus.utilities import ModbusTransactionState, hexlify_packets
+
 
 # --------------------------------------------------------------------------- #
 # Logging
@@ -137,7 +138,9 @@ class ModbusTransactionManager:
                     txt = f"Clearing current Frame: - {_buffer}"
                     _logger.debug(txt)
                     self.client.framer.resetFrame()
-                if broadcast := (self.client.params.broadcast_enable and not request.unit_id):
+                if broadcast := (
+                    self.client.params.broadcast_enable and not request.unit_id
+                ):
                     self._transact(request, None, broadcast=True)
                     response = b"Broadcast write sent - no response expected"
                 else:
@@ -502,7 +505,7 @@ class DictTransactionManager(ModbusTransactionManager):
     def addTransaction(self, request, tid=None):
         """Add a transaction to the handler.
 
-        This holds the requets in case it needs to be resent.
+        This holds the requests in case it needs to be resent.
         After being sent, the request is removed.
 
         :param request: The request to hold on to
@@ -523,7 +526,10 @@ class DictTransactionManager(ModbusTransactionManager):
         """
         txt = f"Getting transaction {tid}"
         _logger.debug(txt)
-
+        if not tid:
+            if self.transactions:
+                return self.transactions.popitem()[1]
+            return None
         return self.transactions.pop(tid, None)
 
     def delTransaction(self, tid):
@@ -561,7 +567,7 @@ class FifoTransactionManager(ModbusTransactionManager):
     def addTransaction(self, request, tid=None):
         """Add a transaction to the handler.
 
-        This holds the requets in case it needs to be resent.
+        This holds the requests in case it needs to be resent.
         After being sent, the request is removed.
 
         :param request: The request to hold on to

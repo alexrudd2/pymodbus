@@ -1,32 +1,101 @@
+
+
+================
 pymodbus\.client
 ================
 
-Pymodbus offers clients with different transport protocols in 2 versions:
+Pymodbus offers clients with transport protocols for
 
-- synchronous,
-- asynchronous (based on asyncio).
+- *Serial* (RS-485) typically using a dongle
+- *TCP*
+- *TLS*
+- *UDP*
+- possibility to add a custom transport protocol
 
-Using a client to set/get information from a device (server) is simple as seen in this
-example (more details in below)::
+communication in 2 versions:
+
+- :mod:`synchronous client`,
+- :mod:`asynchronous client` using asyncio.
+
+Using pymodbus client to set/get information from a device (server)
+is done in a few simple steps, like the following synchronous example::
 
     # create client object
     client = ModbusSerial("/dev/tty")
 
     # connect to device
-    client.start()
+    client.connect()
 
     # set/set information
-    client.read_coils(0x01)
+    rr = client.read_coils(0x01)
     client.write_coil(0x01, values)
-    ...
 
     # disconnect device
-    client.stop()
+    client.close()
 
-.. toctree::
+and a asynchronous example::
 
-    pymodbus.client.setup
+    # create client object
+    async_client = AsyncModbusSerial("/dev/tty")
 
-.. toctree::
+    # connect to device
+    await async_client.connect()
 
-    pymodbus.client.calls
+    # set/set information
+    rr = await async_client.read_coils(0x01)
+    await async_client.write_coil(0x01, values)
+
+    # disconnect device
+    await async_client.close()
+
+Large parts of the implementation are shared between the different classes,
+to ensure high stability and efficient maintenance.
+
+Client setup.
+-------------
+
+.. autoclass:: pymodbus.client.base.ModbusBaseClient
+    :members:
+    :member-order: bysource
+
+Serial RS-485 transport.
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: pymodbus.client.serial.AsyncModbusSerialClient
+
+.. autoclass:: pymodbus.client.serial.ModbusSerialClient
+
+TCP transport.
+~~~~~~~~~~~~~~
+
+.. autoclass:: pymodbus.client.tcp.AsyncModbusTcpClient
+
+.. autoclass:: pymodbus.client.tcp.ModbusTcpClient
+
+TLS transport.
+~~~~~~~~~~~~~~
+
+.. autoclass:: pymodbus.client.tls.AsyncModbusTlsClient
+
+.. autoclass:: pymodbus.client.tls.ModbusTlsClient
+
+UDP transport.
+~~~~~~~~~~~~~~
+
+.. autoclass:: pymodbus.client.udp.AsyncModbusUdpClient
+    :members:
+
+.. autoclass:: pymodbus.client.udp.ModbusUdpClient
+    :members:
+
+
+Client device calls.
+--------------------
+
+Pymodbus makes all standard modbus requests/responses available as simple calls.
+
+Using Modbus<transport>Client.register() custom messagees can be added to pymodbus,
+and handled automatically.
+
+.. autoclass:: pymodbus.client.mixin.ModbusClientMixin
+    :members:

@@ -2,7 +2,8 @@
 # pylint: disable=missing-type-doc
 import struct
 
-from pymodbus.pdu import ModbusExceptions as merror, ModbusRequest, ModbusResponse
+from pymodbus.pdu import ModbusExceptions as merror
+from pymodbus.pdu import ModbusRequest, ModbusResponse
 
 
 class WriteSingleRegisterRequest(ModbusRequest):
@@ -16,13 +17,13 @@ class WriteSingleRegisterRequest(ModbusRequest):
     function_code = 6
     _rtu_frame_size = 8
 
-    def __init__(self, address=None, value=None, **kwargs):
+    def __init__(self, address=None, value=None, unit=None, **kwargs):
         """Initialize a new instance.
 
         :param address: The address to start writing add
         :param value: The values to write
         """
-        ModbusRequest.__init__(self, **kwargs)
+        super().__init__(unit=unit, **kwargs)
         self.address = address
         self.value = value
 
@@ -91,7 +92,7 @@ class WriteSingleRegisterResponse(ModbusResponse):
         :param address: The address to start writing add
         :param value: The values to write
         """
-        ModbusResponse.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.address = address
         self.value = value
 
@@ -145,13 +146,13 @@ class WriteMultipleRegistersRequest(ModbusRequest):
     _rtu_byte_count_pos = 6
     _pdu_length = 5  # func + adress1 + adress2 + outputQuant1 + outputQuant2
 
-    def __init__(self, address=None, values=None, **kwargs):
+    def __init__(self, address=None, values=None, unit=None, **kwargs):
         """Initialize a new instance.
 
         :param address: The address to start writing to
         :param values: The values to write
         """
-        ModbusRequest.__init__(self, **kwargs)
+        super().__init__(unit=unit, **kwargs)
         self.address = address
         if values is None:
             values = []
@@ -236,7 +237,7 @@ class WriteMultipleRegistersResponse(ModbusResponse):
         :param address: The address to start writing to
         :param count: The number of registers to write to
         """
-        ModbusResponse.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.address = address
         self.count = count
 
@@ -284,7 +285,7 @@ class MaskWriteRegisterRequest(ModbusRequest):
         :param and_mask: The and bitmask to apply to the register address
         :param or_mask: The or bitmask to apply to the register address
         """
-        ModbusRequest.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.address = address
         self.and_mask = and_mask
         self.or_mask = or_mask
@@ -337,7 +338,7 @@ class MaskWriteRegisterResponse(ModbusResponse):
         :param and_mask: The and bitmask applied to the register address
         :param or_mask: The or bitmask applied to the register address
         """
-        ModbusResponse.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.address = address
         self.and_mask = and_mask
         self.or_mask = or_mask

@@ -3,16 +3,9 @@
 This is the single location for storing default
 values for the servers and clients.
 """
-import logging
+
 
 from pymodbus.interfaces import Singleton
-
-# set logging format and default level for library.
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-5s %(module)s:%(lineno)s %(message)s",
-    datefmt="%H:%M:%S",
-    level=logging.WARNING,
-)
 
 
 class Defaults(Singleton):  # pylint: disable=too-few-public-methods
@@ -66,9 +59,9 @@ class Defaults(Singleton):  # pylint: disable=too-few-public-methods
        The modbus protocol id.  Currently this is set to 0 in all
        but proprietary implementations.
 
-    .. attribute:: UnitId
+    .. attribute:: Slave
 
-       The modbus slave addrss.  Currently this is set to 0x00 which
+       The modbus slave address.  Currently this is set to 0x00 which
        means this request should be broadcast to all the slave devices
        (really means that all the devices should respond).
 
@@ -120,17 +113,21 @@ class Defaults(Singleton):  # pylint: disable=too-few-public-methods
 
     """
 
-    Port = 502
-    TLSPort = 802
+    TcpPort = 502
+    TlsPort = 802
+    UdpPort = 502
     Backoff = 0.3
+    CloseCommOnError = False
+    HandleLocalEcho = False
     Retries = 3
     RetryOnEmpty = False
     RetryOnInvalid = False
     Timeout = 3
     Reconnects = 0
     TransactionId = 0
+    Strict = True
     ProtocolId = 0
-    UnitId = 0x00
+    Slave = 0x00
     Baudrate = 19200
     Parity = "N"
     Bytesize = 8
@@ -138,7 +135,9 @@ class Defaults(Singleton):  # pylint: disable=too-few-public-methods
     ZeroMode = False
     IgnoreMissingSlaves = False
     ReadSize = 1024
-    broadcast_enable = False
+    BroadcastEnable = False
+    ReconnectDelay = 1000 * 60 * 5
+    Count = 1
 
 
 class ModbusStatus(Singleton):  # pylint: disable=too-few-public-methods

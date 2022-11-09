@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 """Test client sync."""
-from itertools import count
-import socket
 import ssl
 import unittest
+from itertools import count
+from test.conftest import mockSocket
 from unittest.mock import MagicMock, Mock, patch
+
 import serial
 
 from pymodbus.client import (
@@ -13,12 +13,8 @@ from pymodbus.client import (
     ModbusTlsClient,
     ModbusUdpClient,
 )
-from pymodbus.client import ModbusBaseClient
-from pymodbus.client.helper_tls import sslctx_provider
-from pymodbus.exceptions import (
-    ConnectionException,
-    NotImplementedException,
-)
+from pymodbus.client.tls import sslctx_provider
+from pymodbus.exceptions import ConnectionException
 from pymodbus.transaction import (
     ModbusAsciiFramer,
     ModbusBinaryFramer,
@@ -29,133 +25,20 @@ from pymodbus.transaction import (
 
 
 # ---------------------------------------------------------------------------#
-# Mock Classes
-# ---------------------------------------------------------------------------#
-class mockSocket:  # pylint: disable=invalid-name
-    """Mock socket."""
-
-    timeout = 2
-
-    def __init__(self):
-        """Initialize."""
-        self.data = None
-
-    def mock_store(self, msg):
-        """Store message."""
-        self.data = msg
-
-    def mock_retrieve(self, size):
-        """Get message."""
-        if not self.data or not size:
-            return b""
-        if size >= len(self.data):
-            retval = self.data
-        else:
-            retval = self.data[0:size]
-        self.data = None
-        return retval
-
-    def fileno(self):
-        """File number."""
-        return 0
-
-    def close(self):
-        """Close."""
-        return True
-
-    def recv(self, size):
-        """Receive."""
-        return self.mock_retrieve(size)
-
-    def read(self, size):
-        """Read."""
-        return self.mock_retrieve(size)
-
-    def send(self, msg):
-        """Send."""
-        self.mock_store(msg)
-        return len(msg)
-
-    def write(self, msg):
-        """Write."""
-        self.mock_store(msg)
-        return len(msg)
-
-    def recvfrom(self, size):
-        """Receive from."""
-        return [self.mock_retrieve(size)]
-
-    def sendto(self, msg, *args):  # pylint: disable=unused-argument
-        """Send to."""
-        self.mock_store(msg)
-        return len(msg)
-
-    def setblocking(self, flag):  # pylint: disable=unused-argument
-        """Set blocking."""
-        return None
-
-    def in_waiting(self):
-        """Do in waiting."""
-        return None
-
-
-# ---------------------------------------------------------------------------#
 # Fixture
 # ---------------------------------------------------------------------------#
+
+
 class SynchronousClientTest(
     unittest.TestCase
 ):  # pylint: disable=too-many-public-methods
     """Unittest for the pymodbus.client module."""
 
     # -----------------------------------------------------------------------#
-    # Test Base Client
-    # -----------------------------------------------------------------------#
-
-    def test_base_modbus_client(self):
-        """Test the base class for all the clients"""
-        client = ModbusBaseClient(framer=ModbusSocketFramer)
-        client.transaction = None
-        self.assertRaises(NotImplementedException, client.connect)
-        self.assertRaises(NotImplementedException, client.is_socket_open)
-        self.assertRaises(NotImplementedException, client.close)
-        self.assertEqual("ModbusBaseClient None:None", str(client))
-
-        # Test information methods
-        client.last_frame_end = 2
-        client.silent_interval = 2
-        self.assertEqual(4, client.idle_time())
-        client.last_frame_end = None
-        self.assertEqual(0, client.idle_time())
-
-        # a successful execute
-        client.connect = lambda: True
-        client.transaction = Mock(**{"execute.return_value": True})
-        self.assertEqual(
-            client, client.__enter__()  # pylint: disable=unnecessary-dunder-call
-        )
-        self.assertTrue(client.execute())
-
-        # a unsuccessful connect
-        client.connect = lambda: False
-        self.assertRaises(
-            ConnectionException,
-            lambda: client.execute(),  # pylint: disable=unnecessary-lambda
-        )
-        self.assertRaises(
-            ConnectionException,
-            lambda: client.execute(),  # pylint: disable=unnecessary-lambda
-        )
-
-    # -----------------------------------------------------------------------#
     # Test UDP Client
     # -----------------------------------------------------------------------#
 
-    def test_sync_udp_client_instantiation(self):
-        """Test sync udp clientt."""
-        client = ModbusUdpClient("127.0.0.1")
-        self.assertNotEqual(client, None)
-
-    def tes_basic_sync_udp_client(self):
+    def test_basic_syn_udp_client(self):
         """Test the basic methods for the udp sync client"""
         # receive/send
         client = ModbusUdpClient("127.0.0.1")
@@ -173,37 +56,6 @@ class SynchronousClientTest(
         client.close()
 
         self.assertEqual("ModbusUdpClient(127.0.0.1:502)", str(client))
-
-    def test_udp_client_address_family(self):
-        """Test the Udp client get address family method"""
-        client = ModbusUdpClient("127.0.0.1")
-        self.assertEqual(
-            socket.AF_INET,
-            client._get_address_family("127.0.0.1"),  # pylint: disable=protected-access
-        )
-        self.assertEqual(
-            socket.AF_INET6,
-            client._get_address_family("::1"),  # pylint: disable=protected-access
-        )
-
-    def test_udp_client_connect(self):
-        """Test the Udp client connection method"""
-        with patch.object(socket, "socket") as mock_method:
-
-            class DummySocket:  # pylint: disable=too-few-public-methods
-                """Dummy socket."""
-
-                def settimeout(self, *a, **kwa):
-                    """Set timeout."""
-
-            mock_method.return_value = DummySocket()
-            client = ModbusUdpClient("127.0.0.1")
-            self.assertTrue(client.connect())
-
-        with patch.object(socket, "socket") as mock_method:
-            mock_method.side_effect = socket.error()
-            client = ModbusUdpClient("127.0.0.1")
-            self.assertFalse(client.connect())
 
     def test_udp_client_is_socket_open(self):
         """Test the udp client is_socket_open method"""
@@ -233,9 +85,7 @@ class SynchronousClientTest(
         client.socket = mockSocket()
         client.socket.mock_store(b"\x00" * 4)
         self.assertEqual(b"", client.recv(0))
-        self.assertEqual(
-            b"\x00" * 4, client.recv(4)
-        )
+        self.assertEqual(b"\x00" * 4, client.recv(4))
 
     def test_udp_client_repr(self):
         """Test udp client representation."""
@@ -250,13 +100,13 @@ class SynchronousClientTest(
     # Test TCP Client
     # -----------------------------------------------------------------------#
 
-    def test_sync_tcp_client_instantiation(self):
+    def test_syn_tcp_client_instantiation(self):
         """Test sync tcp client."""
         client = ModbusTcpClient("127.0.0.1")
         self.assertNotEqual(client, None)
 
-    @patch("pymodbus.client.sync_tcp.select")
-    def test_basic_sync_tcp_client(self, mock_select):
+    @patch("pymodbus.client.tcp.select")
+    def test_basic_syn_tcp_client(self, mock_select):
         """Test the basic methods for the tcp sync client"""
         # receive/send
         mock_select.select.return_value = [True]
@@ -276,20 +126,6 @@ class SynchronousClientTest(
 
         self.assertEqual("ModbusTcpClient(127.0.0.1:502)", str(client))
 
-    def test_tcp_client_connect(self):
-        """Test the tcp client connection method"""
-        with patch.object(socket, "create_connection") as mock_method:
-            _socket = MagicMock()
-            mock_method.return_value = _socket
-            client = ModbusTcpClient("127.0.0.1")
-            _socket.getsockname.return_value = ("dmmy", 1234)
-            self.assertTrue(client.connect())
-
-        with patch.object(socket, "create_connection") as mock_method:
-            mock_method.side_effect = socket.error()
-            client = ModbusTcpClient("127.0.0.1")
-            self.assertFalse(client.connect())
-
     def test_tcp_client_is_socket_open(self):
         """Test the tcp client is_socket_open method"""
         client = ModbusTcpClient("127.0.0.1")
@@ -307,8 +143,8 @@ class SynchronousClientTest(
         self.assertEqual(0, client.send(None))
         self.assertEqual(4, client.send("1234"))
 
-    @patch("pymodbus.client.sync_tcp.time")
-    @patch("pymodbus.client.sync_tcp.select")
+    @patch("pymodbus.client.tcp.time")
+    @patch("pymodbus.client.tcp.select")
     def test_tcp_client_recv(self, mock_select, mock_time):
         """Test the tcp client receive method"""
         mock_select.select.return_value = [True]
@@ -321,21 +157,15 @@ class SynchronousClientTest(
         client.socket = mockSocket()
         self.assertEqual(b"", client.recv(0))
         client.socket.mock_store(b"\x00" * 4)
-        self.assertEqual(
-            b"\x00" * 4, client.recv(4)
-        )
+        self.assertEqual(b"\x00" * 4, client.recv(4))
 
         mock_socket = MagicMock()
         mock_socket.recv.side_effect = iter([b"\x00", b"\x01", b"\x02"])
         client.socket = mock_socket
         client.params.timeout = 3
-        self.assertEqual(
-            b"\x00\x01\x02", client.recv(3)
-        )
+        self.assertEqual(b"\x00\x01\x02", client.recv(3))
         mock_socket.recv.side_effect = iter([b"\x00", b"\x01", b"\x02"])
-        self.assertEqual(
-            b"\x00\x01", client.recv(2)
-        )
+        self.assertEqual(b"\x00\x01", client.recv(2))
         mock_select.select.return_value = [False]
         self.assertEqual(b"", client.recv(2))
         client.socket = mockSocket()
@@ -353,9 +183,7 @@ class SynchronousClientTest(
 
         mock_socket.recv.side_effect = iter([b"\x00", b"\x01", b"\x02", b""])
         client.socket = mock_socket
-        self.assertEqual(
-            b"\x00\x01\x02", client.recv(1024)
-        )
+        self.assertEqual(b"\x00\x01\x02", client.recv(1024))
 
     def test_tcp_client_repr(self):
         """Test tcp client."""
@@ -405,7 +233,7 @@ class SynchronousClientTest(
             sslctx_new = sslctx_provider(sslctx=sslctx_old)
             self.assertEqual(sslctx_new, sslctx_old)
 
-    def test_sync_tls_client_instantiation(self):
+    def test_syn_tls_client_instantiation(self):
         """Test sync tls client."""
         # default SSLContext
         client = ModbusTlsClient("127.0.0.1")
@@ -413,8 +241,8 @@ class SynchronousClientTest(
         self.assertIsInstance(client.framer, ModbusTlsFramer)
         self.assertTrue(client.sslctx)
 
-    @patch("pymodbus.client.sync_tcp.select")
-    def test_basic_sync_tls_client(self, mock_select):
+    @patch("pymodbus.client.tcp.select")
+    def test_basic_syn_tls_client(self, mock_select):
         """Test the basic methods for the tls sync client"""
         # receive/send
         mock_select.select.return_value = [True]
@@ -439,17 +267,6 @@ class SynchronousClientTest(
         self.assertEqual(1, client.send(b"\x45"))
         self.assertEqual(b"\x45", client.recv(1))
 
-    def test_tls_client_connect(self):
-        """Test the tls client connection method"""
-        with patch.object(ssl.SSLSocket, "connect") as mock_method:
-            client = ModbusTlsClient("127.0.0.1")
-            self.assertTrue(client.connect())
-
-        with patch.object(socket, "create_connection") as mock_method:
-            mock_method.side_effect = socket.error()
-            client = ModbusTlsClient("127.0.0.1")
-            self.assertFalse(client.connect())
-
     def test_tls_client_send(self):
         """Test the tls client send method"""
         client = ModbusTlsClient("127.0.0.1")
@@ -462,8 +279,8 @@ class SynchronousClientTest(
         self.assertEqual(0, client.send(None))
         self.assertEqual(4, client.send("1234"))
 
-    @patch("pymodbus.client.sync_tcp.time")
-    @patch("pymodbus.client.sync_tcp.select")
+    @patch("pymodbus.client.tcp.time")
+    @patch("pymodbus.client.tcp.select")
     def test_tls_client_recv(self, mock_select, mock_time):
         """Test the tls client receive method"""
         mock_select.select.return_value = [True]
@@ -478,9 +295,7 @@ class SynchronousClientTest(
         client.socket = mockSocket()
         client.socket.mock_store(b"\x00" * 4)
         self.assertEqual(b"", client.recv(0))
-        self.assertEqual(
-            b"\x00" * 4, client.recv(4)
-        )
+        self.assertEqual(b"\x00" * 4, client.recv(4))
 
         client.params.timeout = 2
         client.socket.mock_store(b"\x00")
@@ -528,16 +343,28 @@ class SynchronousClientTest(
         client = ModbusSerialClient("/dev/null")
         self.assertNotEqual(client, None)
         self.assertTrue(
-            isinstance(ModbusSerialClient("/dev/null", framer=ModbusAsciiFramer).framer, ModbusAsciiFramer)
+            isinstance(
+                ModbusSerialClient("/dev/null", framer=ModbusAsciiFramer).framer,
+                ModbusAsciiFramer,
+            )
         )
         self.assertTrue(
-            isinstance(ModbusSerialClient("/dev/null", framer=ModbusRtuFramer).framer, ModbusRtuFramer)
+            isinstance(
+                ModbusSerialClient("/dev/null", framer=ModbusRtuFramer).framer,
+                ModbusRtuFramer,
+            )
         )
         self.assertTrue(
-            isinstance(ModbusSerialClient("/dev/null", framer=ModbusBinaryFramer).framer, ModbusBinaryFramer)
+            isinstance(
+                ModbusSerialClient("/dev/null", framer=ModbusBinaryFramer).framer,
+                ModbusBinaryFramer,
+            )
         )
         self.assertTrue(
-            isinstance(ModbusSerialClient("/dev/null", framer=ModbusSocketFramer).framer, ModbusSocketFramer)
+            isinstance(
+                ModbusSerialClient("/dev/null", framer=ModbusSocketFramer).framer,
+                ModbusSocketFramer,
+            )
         )
 
     def test_sync_serial_rtu_client_timeouts(self):
@@ -568,18 +395,19 @@ class SynchronousClientTest(
         client.close()
 
         # rtu connect/disconnect
-        rtu_client = ModbusSerialClient("/dev/null", framer=ModbusRtuFramer, strict=True)
+        rtu_client = ModbusSerialClient(
+            "/dev/null", framer=ModbusRtuFramer, strict=True
+        )
         self.assertTrue(rtu_client.connect())
         self.assertEqual(
             rtu_client.socket.interCharTimeout, rtu_client.inter_char_timeout
         )
         rtu_client.close()
+        self.assertTrue("baud[19200])" in str(client))
 
         # already closed socket
         client.socket = False
         client.close()
-
-        self.assertTrue("baud[9600])" in str(client))
 
     def test_serial_client_connect(self):
         """Test the serial client connection method"""
@@ -647,9 +475,7 @@ class SynchronousClientTest(
         client.socket = mockSocket()
         self.assertEqual(b"", client.recv(0))
         client.socket.mock_store(b"\x00" * 4)
-        self.assertEqual(
-            b"\x00" * 4, client.recv(4)
-        )
+        self.assertEqual(b"\x00" * 4, client.recv(4))
         client.socket = MagicMock()
         client.socket.read.return_value = b""
         self.assertEqual(b"", client.recv(None))
@@ -666,10 +492,3 @@ class SynchronousClientTest(
             f"framer={client.framer}, timeout={client.params.timeout}>"
         )
         self.assertEqual(repr(client), rep)
-
-
-# ---------------------------------------------------------------------------#
-# Main
-# ---------------------------------------------------------------------------#
-if __name__ == "__main__":
-    unittest.main()

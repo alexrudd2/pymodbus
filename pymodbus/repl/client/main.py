@@ -1,9 +1,10 @@
 """Pymodbus REPL Entry point."""
 # pylint: disable=anomalous-backslash-in-string
-# flake8: noqa: W605
+# flake8: noqa
 import logging
-import sys
 import pathlib
+import sys
+
 
 try:
     import click
@@ -27,17 +28,21 @@ from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from pygments.lexers.python import PythonLexer
 
-from pymodbus.repl.client.completer import CmdCompleter, has_selected_completion
+from pymodbus.exceptions import ParameterException
+from pymodbus.repl.client.completer import (
+    CmdCompleter,
+    has_selected_completion,
+)
 from pymodbus.repl.client.helper import CLIENT_ATTRIBUTES, Result
 from pymodbus.repl.client.mclient import ModbusSerialClient, ModbusTcpClient
-from pymodbus.version import version
-from pymodbus.exceptions import ParameterException
 from pymodbus.transaction import (
     ModbusAsciiFramer,
     ModbusBinaryFramer,
     ModbusRtuFramer,
     ModbusSocketFramer,
 )
+from pymodbus.version import version
+
 
 _logger = logging.getLogger()
 
@@ -107,12 +112,64 @@ class NumericChoice(click.Choice):
                 if ctx.token_normalize_func(choice) == value:
                     return choice
 
-        self.fail('invalid choice: %s. (choose from %s)' %   # pylint: disable=consider-using-f-string
-                  (value, ', '.join(self.choices)), param, ctx)
+        self.fail(
+            "invalid choice: %s. (choose from %s)"  # pylint: disable=consider-using-f-string
+            % (
+                value,
+                ", ".join(self.choices),
+            ),
+            param,
+            ctx,
+        )
         return None
 
 
-def cli(client):  # noqa: C901 pylint: disable=too-complex
+def _process_args(args: list, string: bool = True):
+    """Internal function to parse arguments provided on command line.
+
+    :param args: Array of argument values
+    :param string: True if arguments values are strings, false if argument values are integers
+
+    :return Tuple, where the first member is hash of parsed values, and second is boolean flag
+        indicating if parsing succeeded.
+    """
+    kwargs = {}
+    execute = True
+    skip_index = None
+
+    def _parse_val(arg_name, val):
+        if not string:
+            if "," in val:
+                val = val.split(",")
+                val = [int(v, 0) for v in val]
+            else:
+                val = int(val, 0)
+        kwargs[arg_name] = val
+
+    for i, arg in enumerate(args):
+        if i == skip_index:
+            continue
+        arg = arg.strip()
+        if "=" in arg:
+            arg_name, val = arg.split("=")
+            _parse_val(arg_name, val)
+        else:
+            arg_name, val = arg, args[i + 1]
+            try:
+                _parse_val(arg_name, val)
+                skip_index = i + 1
+            except TypeError:
+                click.secho("Error parsing arguments!", fg="yellow")
+                execute = False
+                break
+            except ValueError:
+                click.secho("Error parsing argument", fg="yellow")
+                execute = False
+                break
+    return kwargs, execute
+
+
+def cli(client):  # pylint: disable=too-complex
     """Run client definition."""
     use_keys = KeyBindings()
     history_file = pathlib.Path.home().joinpath(".pymodhis")
@@ -133,52 +190,17 @@ def cli(client):  # noqa: C901 pylint: disable=too-complex
         buffer = event.cli.current_buffer
         buffer.complete_state = None
 
-    def _process_args(args, string=True):
-        kwargs = {}
-        execute = True
-        skip_index = None
-        for i, arg in enumerate(args):
-            if i == skip_index:
-                continue
-            arg = arg.strip()
-            if "=" in arg:
-                arg_name, val = arg.split("=")
-                if not string:
-                    if "," in val:
-                        val = val.split(",")
-                        val = [int(v) for v in val]
-                    else:
-                        val = int(val)
-                kwargs[arg_name] = val
-            else:
-                arg_name, val = arg, args[i + 1]
-                try:
-                    if not string:
-                        if "," in val:
-                            val = val.split(",")
-                            val = [int(v) for v in val]
-                        else:
-                            val = int(val)
-                    kwargs[arg_name] = val
-                    skip_index = i + 1
-                except TypeError:
-                    click.secho("Error parsing arguments!", fg="yellow")
-                    execute = False
-                    break
-                except ValueError:
-                    click.secho("Error parsing argument", fg="yellow")
-                    execute = False
-                    break
-        return kwargs, execute
-
-    session = PromptSession(lexer=PygmentsLexer(PythonLexer),
-                            completer=CmdCompleter(client), style=style,
-                            complete_while_typing=True,
-                            bottom_toolbar=bottom_toolbar,
-                            key_bindings=use_keys,
-                            history=FileHistory(history_file),
-                            auto_suggest=AutoSuggestFromHistory())
-    click.secho(TITLE, fg='green')
+    session = PromptSession(
+        lexer=PygmentsLexer(PythonLexer),
+        completer=CmdCompleter(client),
+        style=style,
+        complete_while_typing=True,
+        bottom_toolbar=bottom_toolbar,
+        key_bindings=use_keys,
+        history=FileHistory(history_file),
+        auto_suggest=AutoSuggestFromHistory(),
+    )
+    click.secho(TITLE, fg="green")
     result = None
     while True:  # pylint: disable=too-many-nested-blocks
         try:

@@ -85,13 +85,9 @@ from pymodbus.other_message import (
     ReportSlaveIdRequest,
     ReportSlaveIdResponse,
 )
-from pymodbus.pdu import (
-    ExceptionResponse,
-    IllegalFunctionRequest,
-    ModbusExceptions as ecode,
-    ModbusRequest,
-    ModbusResponse,
-)
+from pymodbus.pdu import ExceptionResponse, IllegalFunctionRequest
+from pymodbus.pdu import ModbusExceptions as ecode
+from pymodbus.pdu import ModbusRequest, ModbusResponse
 from pymodbus.register_read_message import (
     ReadHoldingRegistersRequest,
     ReadHoldingRegistersResponse,
@@ -108,6 +104,7 @@ from pymodbus.register_write_message import (
     WriteSingleRegisterRequest,
     WriteSingleRegisterResponse,
 )
+
 
 # --------------------------------------------------------------------------- #
 # Logging
@@ -364,16 +361,8 @@ class ClientDecoder(IModbusDecoder):
 
         return response
 
-    def register(
-        self, function=None, sub_function=None, force=False
-    ):  # pylint: disable=unused-argument
-        """Register a function and sub function class with the decoder.
-
-        :param function: Custom function class to register
-        :param sub_function: Custom sub function class to register
-        :param force: Force update the existing class
-        :raises MessageRegisterException:
-        """
+    def register(self, function):
+        """Register a function and sub function class with the decoder."""
         if function and not issubclass(function, ModbusResponse):
             raise MessageRegisterException(
                 f'"{function.__class__.__name__}" is Not a valid Modbus Message'

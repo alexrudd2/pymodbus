@@ -4,7 +4,10 @@ import logging
 import struct
 import time
 
-from pymodbus.exceptions import InvalidMessageReceivedException, ModbusIOException
+from pymodbus.exceptions import (
+    InvalidMessageReceivedException,
+    ModbusIOException,
+)
 from pymodbus.framer import BYTE_ORDER, FRAME_HEADER, ModbusFramer
 from pymodbus.utilities import (
     ModbusTransactionState,
@@ -12,6 +15,7 @@ from pymodbus.utilities import (
     computeCRC,
     hexlify_packets,
 )
+
 
 # --------------------------------------------------------------------------- #
 # Logging
@@ -228,21 +232,25 @@ class ModbusRtuFramer(ModbusFramer):
             unit = [unit]
         self.addToFrame(data)
         single = kwargs.get("single", False)
-        if self.isFrameReady():
-            if self.checkFrame():
-                if self._validate_unit_id(unit, single):
-                    self._process(callback)
+        while True:
+            if self.isFrameReady():
+                if self.checkFrame():
+                    if self._validate_unit_id(unit, single):
+                        self._process(callback)
+                    else:
+                        header_txt = self._header["uid"]
+                        txt = f"Not a valid unit id - {header_txt}, ignoring!!"
+                        _logger.debug(txt)
+                        self.resetFrame()
+                        break
                 else:
-                    header_txt = self._header["uid"]
-                    txt = f"Not a valid unit id - {header_txt}, ignoring!!"
-                    _logger.debug(txt)
+                    _logger.debug("Frame check failed, ignoring!!")
                     self.resetFrame()
+                    break
             else:
-                _logger.debug("Frame check failed, ignoring!!")
-                self.resetFrame()
-        else:
-            txt = f"Frame - [{data}] not ready"
-            _logger.debug(txt)
+                txt = f"Frame - [{data}] not ready"
+                _logger.debug(txt)
+                break
 
     def buildPacket(self, message):
         """Create a ready to send modbus packet.
