@@ -103,7 +103,7 @@ jobs:
 
       - name: venv create
         if: steps.cache-venv.outputs.cache-hit != 'true'
-        run: pip install '.[all]'
+        run: pip install --upgrade pip && pip install '.[all]'
 
       - name: pytest
         run: pytest -v --full-trace --timeout=1200
