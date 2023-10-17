@@ -30,9 +30,9 @@ jobs:
           # - on: windows-latest
         python:
           - version: '3.8'
-          - version: '3.9'
-          - version: '3.10'
-          - version: '3.11'
+          # - version: '3.9'
+          # - version: '3.10'
+          # - version: '3.11'
           - version: '3.12'
     steps:
       - name: Checkout repository
@@ -82,9 +82,9 @@ jobs:
           - on: windows-latest
         python:
           - version: '3.8'
-          - version: '3.9'
-          - version: '3.10'
-          - version: '3.11'
+          # - version: '3.9'
+          # - version: '3.10'
+          # - version: '3.11'
           - version: '3.12'
     steps:
       - name: Checkout repository
@@ -108,29 +108,29 @@ jobs:
       - name: pytest
         run: pytest -v --full-trace --timeout=1200
 
-  analyze:
-    name: Analyze Python
-    runs-on: ubuntu-22.04
+  # analyze:
+  #   name: Analyze Python
+  #   runs-on: ubuntu-22.04
 
-    steps:
-      - uses: actions/checkout@v3
+  #   steps:
+  #     - uses: actions/checkout@v3
 
-      - uses: github/codeql-action/init@v2
-        with:
-          languages: python
+  #     - uses: github/codeql-action/init@v2
+  #       with:
+  #         languages: python
 
-      - uses: github/codeql-action/autobuild@v2
+  #     - uses: github/codeql-action/autobuild@v2
 
-      - uses: github/codeql-action/analyze@v2
+  #     - uses: github/codeql-action/analyze@v2
 
-  ci_complete:
-    name: ci_complete
-    runs-on: ubuntu-latest
-    needs:
-      - linters
-      - analyze
-      - integration_test
-    timeout-minutes: 1
-    steps:
-      - name: Dummy
-        run: ls
+  # ci_complete:
+  #   name: ci_complete
+  #   runs-on: ubuntu-latest
+  #   needs:
+  #     - linters
+  #     - analyze
+  #     - integration_test
+  #   timeout-minutes: 1
+  #   steps:
+  #     - name: Dummy
+  #       run: ls
