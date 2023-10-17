@@ -17,6 +17,6 @@
     {
       "matchPackagePatterns": ["ruff"],
       "groupName": "ruff"
-    },
-  ],
+    }
+  ]
 }
