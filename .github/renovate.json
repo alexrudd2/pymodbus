@@ -2,6 +2,7 @@
   "extends": [
     "config:recommended"
   ],
+  "enabledManagers": ["pep621"],
   "pre-commit": {
     "enabled": true
   },
