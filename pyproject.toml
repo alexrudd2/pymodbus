@@ -31,6 +31,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 requires-python = ">=3.8.0"
+dependencies = ['setuptools']
 
 [project.urls]
 Homepage = "https://github.com/pymodbus-dev/pymodbus/"
