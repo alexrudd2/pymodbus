@@ -5,6 +5,7 @@
   "pre-commit": {
     "enabled": true
   },
+  "range-strategy": "bump",
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
