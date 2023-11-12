@@ -54,7 +54,7 @@ repl = [
     "typer[all]>=0.7.0",
     "prompt-toolkit>=3.0.36",
     "pygments>=2.15.0",
-    "click>=8.0.0"
+    "click>=8.1.7"
 ]
 simulator = [
     "aiohttp>=3.8.6;python_version<'3.12'",
