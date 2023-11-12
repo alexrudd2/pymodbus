@@ -62,7 +62,7 @@ simulator = [
 ]
 documentation = [
     "recommonmark>=0.7.1",
-    "Sphinx>=5.3.0",
+    "Sphinx>=7.2.6",
     "sphinx-rtd-theme>=1.1.1"
 ]
 development = [
