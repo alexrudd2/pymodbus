@@ -52,7 +52,7 @@ repl = [
     "aiohttp>=3.8.6;python_version<'3.12'",
     "aiohttp>=3.9.0b0;python_version=='3.12'",
     "typer[all]>=0.7.0",
-    "prompt-toolkit>=3.0.36",
+    "prompt-toolkit>=3.0.43",
     "pygments>=2.15.0",
     "click>=8.0.0"
 ]
